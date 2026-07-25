@@ -1,1 +1,0 @@
-# SSR-math-finder-app_v2
