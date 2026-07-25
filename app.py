@@ -63,7 +63,7 @@ custom_css = """
     }
 
     [data-testid="stSidebar"] {
-        background-color: rgba(15, 23, 42, 0.9);
+        background-color: rgba(15, 23, 42, 0.95);
         border-right: 1px solid rgba(255, 255, 255, 0.1);
     }
 
@@ -160,7 +160,9 @@ with col_head:
 with col_pika:
     st.image("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/showdown/25.gif", width=100)
 
-# 🔑 ৪. সাইডবারে API Key ব্যবস্থাপনা
+# ----------------------------------------------------
+# 📌 ৪. সাইডবার (সবসময় দৃশ্যমান থাকবে)
+# ----------------------------------------------------
 st.sidebar.markdown("### 🔑 API Key কনফিগারেশন")
 secrets_key = st.secrets.get("GEMINI_API_KEY", "")
 
@@ -169,35 +171,40 @@ if secrets_key.startswith("AQ."):
     secrets_key = ""
 
 user_api_key = st.sidebar.text_input(
-    "Gemini API Key বসাো (AIzaSy...):", 
+    "Gemini API Key বসাও (AIzaSy...):", 
     value=secrets_key, 
     type="password",
-    help="যদি Secrets কাজ না করে, তবে তোমার নতুন API Key টি এখানে পেস্ট করে দিতে পারো।"
+    help="এখানে তোমার নতুন API Key পেস্ট করো"
 )
 
 api_key = user_api_key.strip() if user_api_key else secrets_key.strip()
 
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 📚 বইয়ের খণ্ড/অধ্যায় নির্বাচন")
+
+pdf_files = sorted(glob.glob("*.pdf") + glob.glob("*.PDF") + glob.glob("books/*.pdf") + glob.glob("books/*.PDF"))
+
+if not pdf_files:
+    st.sidebar.warning("⚠️ গিটহাবে কোনো পিডিএফ (.pdf) ফাইল পাওয়া যায়নি।")
+    selected_pdf = None
+else:
+    selected_pdf = st.sidebar.selectbox(
+        "যে খণ্ড/অধ্যায়ে অংক খুঁজবে সেটি বেছে নাও:",
+        options=pdf_files,
+        format_func=lambda x: os.path.basename(x)
+    )
+
+st.sidebar.markdown("---")
+st.sidebar.info("🔒 নিরাপত্তা: শুধুমাত্র ফাউন্ডার (SK Sahed) নতুন ফাইল যুক্ত করতে পারবেন।")
+
+# ----------------------------------------------------
+# 🔍 ৫. মেইন পেজ ও লজিক
+# ----------------------------------------------------
 if not api_key:
-    st.error("⚠️ কোনো সঠিক Gemini API Key পাওয়া যায়নি! বামপাশের সাইডবারে তোমার নতুন API Key (যা AIzaSy দিয়ে শুরু) বসাও।")
+    st.warning("👈 বামপাশের সাইডবার খুলতে স্ক্রিনের একদম উপরে বাম কোণার ( > ) বাটনে চাপ দাও এবং তোমার নতুন API Key (AIzaSy...) বসাও!")
 else:
     try:
         genai.configure(api_key=api_key)
-
-        # 📚 ৫. সাইডবারে বইয়ের খণ্ড/অধ্যায় নির্বাচনের ড্রপডাউন
-        st.sidebar.markdown("---")
-        st.sidebar.markdown("### 📚 বইয়ের খণ্ড/অধ্যায় নির্বাচন")
-        
-        pdf_files = sorted(glob.glob("*.pdf") + glob.glob("*.PDF") + glob.glob("books/*.pdf") + glob.glob("books/*.PDF"))
-
-        if not pdf_files:
-            st.sidebar.warning("⚠️ গিটহাবে কোনো পিডিএফ (.pdf) ফাইল পাওয়া যায়নি।")
-            selected_pdf = None
-        else:
-            selected_pdf = st.sidebar.selectbox(
-                "যে খণ্ড/অধ্যায়ে অংক খুঁজবে সেটি বেছে নাও:",
-                options=pdf_files,
-                format_func=lambda x: os.path.basename(x)
-            )
 
         # ⚡ গুগল জেমিনাই-তে সিলেক্ট করা বইটি আপলোড ও স্মার্ট ক্যাশিং ফাংশন
         @st.cache_resource(show_spinner="⚡ নির্বাচিত খণ্ডটি গুগলের সার্ভারে মেমোরিতে সেভ করা হচ্ছে...")
@@ -221,9 +228,6 @@ else:
             st.sidebar.success(f"✅ নির্বাচিত বই: {pdf_filename}")
             if cache_mode == "CACHE":
                 st.sidebar.info("🚀 Context Caching Active!")
-        
-        st.sidebar.markdown("---")
-        st.sidebar.info("🔒 নিরাপত্তা: শুধুমাত্র ফাউন্ডার (SK Sahed) নতুন ফাইল যুক্ত করতে পারবেন।")
 
         # 🔍 খাতার প্রশ্ন আপলোড
         col_m1, col_m2 = st.columns([3, 1])
@@ -312,5 +316,5 @@ else:
                     st.error(f"একটি সমস্যা হয়েছে: {e}")
 
     except Exception as e:
-        st.error(f"অ্যাপ কনফিগারেশনে সমস্যা: {e}")
+        st.error(f"এপিআই কী সঠিক নয় বা কনফিগারেশনে সমস্যা: {e}")
         
