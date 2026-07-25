@@ -97,7 +97,7 @@ st.markdown(custom_css, unsafe_allow_html=True)
 def show_founder_popup():
     col1, col2 = st.columns([1, 2])
     with col1:
-        founder_photo = "https://raw.githubusercontent.com/Sksahed/SSR-math-finder-app/refs/heads/main/IMG_20260609_112752_911.webp"
+        founder_photo = "https://raw.githubusercontent.com/Sksahed/SSR-math-finder-app_v2/refs/heads/main/IMG_20260609_112752_911.webp"
         
         st.markdown(f"""
         <div style="text-align: center; margin-bottom: 15px;">
@@ -123,7 +123,7 @@ if "founder_popup_shown" not in st.session_state:
     show_founder_popup()
 
 # --- 🌟 ওপরে স্টাইলিশ ওয়েলকাম বার ---
-founder_photo_url = "https://raw.githubusercontent.com/Sksahed/SSR-math-finder-app/refs/heads/main/IMG_20260609_112752_911.webp"
+founder_photo_url = "https://raw.githubusercontent.com/Sksahed/SSR-math-finder-app_v2/refs/heads/main/IMG_20260609_112752_911.webp"
 
 st.markdown(f"""
 <div style="
@@ -295,4 +295,4 @@ try:
 
 except Exception as e:
     st.error(f"অ্যাপ কনফিগারেশনে সমস্যা: {e}")
-
+        
