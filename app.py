@@ -160,50 +160,68 @@ with col_head:
 with col_pika:
     st.image("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/showdown/25.gif", width=100)
 
-# ৪. সিকিউর এপিআই কনফিগারেশন
-try:
-    api_key = st.secrets.get("GEMINI_API_KEY", "")
-    if not api_key:
-        st.error("⚠️ Streamlit Secrets-এ GEMINI_API_KEY পাওয়া যায়নি! অনুগ্রহ করে Streamlit App Settings-এ গিয়ে এটি সেট করুন।")
-    else:
+# 🔑 ৪. সাইডবারে API Key ব্যবস্থাপনা
+st.sidebar.markdown("### 🔑 API Key কনফিগারেশন")
+secrets_key = st.secrets.get("GEMINI_API_KEY", "")
+
+# যদি secrets_key ভুল বা পুরানো "AQ." দিয়ে শুরু হয়, তবে ফাঁকা করে দাও
+if secrets_key.startswith("AQ."):
+    secrets_key = ""
+
+user_api_key = st.sidebar.text_input(
+    "Gemini API Key বসাো (AIzaSy...):", 
+    value=secrets_key, 
+    type="password",
+    help="যদি Secrets কাজ না করে, তবে তোমার নতুন API Key টি এখানে পেস্ট করে দিতে পারো।"
+)
+
+api_key = user_api_key.strip() if user_api_key else secrets_key.strip()
+
+if not api_key:
+    st.error("⚠️ কোনো সঠিক Gemini API Key পাওয়া যায়নি! বামপাশের সাইডবারে তোমার নতুন API Key (যা AIzaSy দিয়ে শুরু) বসাও।")
+else:
+    try:
         genai.configure(api_key=api_key)
 
-        # ⚡ গুগল জেমিনাই-তে বই আপলোড ও স্মার্ট ক্যাশিং ফাংশন (মাত্র ১ বার চলবে)
-        @st.cache_resource(show_spinner="⚡ গুগলের সার্ভারে বই প্রসেস ও মেমোরিতে সেভ করা হচ্ছে (এটি কেবল ১ বার হবে)...")
-        def load_and_cache_pdf_to_gemini():
-            pdf_files = sorted(glob.glob("*.pdf") + glob.glob("*.PDF") + glob.glob("books/*.pdf") + glob.glob("books/*.PDF"))
-            if not pdf_files:
-                return None, None, None
-            
-            pdf_path = pdf_files[0]
-            file_name = os.path.basename(pdf_path)
+        # 📚 ৫. সাইডবারে বইয়ের খণ্ড/অধ্যায় নির্বাচনের ড্রপডাউন
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("### 📚 বইয়ের খণ্ড/অধ্যায় নির্বাচন")
+        
+        pdf_files = sorted(glob.glob("*.pdf") + glob.glob("*.PDF") + glob.glob("books/*.pdf") + glob.glob("books/*.PDF"))
 
-            # ১. গুগলের সার্ভারে পিডিএফ আপলোড
+        if not pdf_files:
+            st.sidebar.warning("⚠️ গিটহাবে কোনো পিডিএফ (.pdf) ফাইল পাওয়া যায়নি।")
+            selected_pdf = None
+        else:
+            selected_pdf = st.sidebar.selectbox(
+                "যে খণ্ড/অধ্যায়ে অংক খুঁজবে সেটি বেছে নাও:",
+                options=pdf_files,
+                format_func=lambda x: os.path.basename(x)
+            )
+
+        # ⚡ গুগল জেমিনাই-তে সিলেক্ট করা বইটি আপলোড ও স্মার্ট ক্যাশিং ফাংশন
+        @st.cache_resource(show_spinner="⚡ নির্বাচিত খণ্ডটি গুগলের সার্ভারে মেমোরিতে সেভ করা হচ্ছে...")
+        def load_and_cache_pdf(pdf_path):
+            file_name = os.path.basename(pdf_path)
             uploaded_file = genai.upload_file(pdf_path)
 
-            # ২. টোকেন খরচ কমানোর জন্য জেমিনাই ক্যাশ তৈরি (২৪ ঘণ্টার জন্য)
             try:
                 cache = caching.CachedContent.create(
                     model='models/gemini-1.5-flash',
                     display_name=f'cache_{file_name}',
                     contents=[uploaded_file],
-                    ttl=datetime.timedelta(hours=24) # গুগলের মেমোরিতে ২৪ ঘণ্টা থাকবে
+                    ttl=datetime.timedelta(hours=24)
                 )
                 return "CACHE", cache, file_name
             except Exception:
-                # যদি ফাইল ছোট হয় বা অটো ক্যাশ না হয়, তাহলেও ফাইল আপলোড রেফারেন্স সেভ থাকবে
                 return "FILE", uploaded_file, file_name
 
-        cache_mode, cache_or_file_obj, pdf_filename = load_and_cache_pdf_to_gemini()
-
-        st.sidebar.markdown("### 📚 পিডিএফ ডাটাবেজ স্ট্যাটাস")
-        if pdf_filename:
-            st.sidebar.success(f"✅ বই গুগলের মেমোরিতে সেভড: {pdf_filename}")
+        if selected_pdf:
+            cache_mode, cache_or_file_obj, pdf_filename = load_and_cache_pdf(selected_pdf)
+            st.sidebar.success(f"✅ নির্বাচিত বই: {pdf_filename}")
             if cache_mode == "CACHE":
-                st.sidebar.info("🚀 **Context Caching Active:** ইনপুট টোকেন খরচ ৭৫% কমানো হয়েছে!")
-        else:
-            st.sidebar.warning("⚠️ গিটহাবে কোনো পিডিএফ (.pdf) ফাইল খুঁজে পাওয়া যায়নি।")
-
+                st.sidebar.info("🚀 Context Caching Active!")
+        
         st.sidebar.markdown("---")
         st.sidebar.info("🔒 নিরাপত্তা: শুধুমাত্র ফাউন্ডার (SK Sahed) নতুন ফাইল যুক্ত করতে পারবেন।")
 
@@ -213,7 +231,7 @@ try:
             st.markdown("""
             <div class="card" style="border-left: 6px solid #ec4899;">
                 <h3 style='color: #f8fafc; margin-top: 0;'>🔍 খাতার প্রশ্ন আপলোড করো</h3>
-                <p style='color: #cbd5e1; font-size: 14px;'>তোমার খাতার পাতা বা বইয়ের অংকের ছবি আপলোড করো। গুগলের প্রি-আপলোডেড মেমোরি থেকে এআই দ্রুত সমাধান করে দেবে!</p>
+                <p style='color: #cbd5e1; font-size: 14px;'>তোমার খাতার পাতা বা বইয়ের অংকের ছবি আপলোড করো। এআই বেছে নেওয়া খণ্ড থেকে দ্রুত সমাধান করে দেবে!</p>
             </div>
             """, unsafe_allow_html=True)
 
@@ -253,7 +271,7 @@ try:
 
         # সার্চ লজিক
         if btn_find_only or btn_find_with_solution:
-            if not pdf_filename:
+            if not selected_pdf:
                 st.error("⚠️ গিটহাবে কোনো পিডিএফ (.pdf) ফাইল নেই! দয়া করে পিডিএফ আপলোড রয়েছে কিনা নিশ্চিত করুন।")
             elif not query_image:
                 st.error("⚠️ যে অংকটি স্ক্যান করতে চান, তার ছবি আপলোড করুন!")
@@ -270,7 +288,7 @@ try:
 
                     img_input = Image.open(query_image)
 
-                    # ক্যাশ করা মেমোরি থেকে দ্রুত উত্তর তৈরি
+                    # ক্যাশ করা মেমোরি থেকে উত্তর তৈরি
                     if cache_mode == "CACHE":
                         model = genai.GenerativeModel.from_cached_content(cached_content=cache_or_file_obj)
                         response = model.generate_content([prompt, img_input])
@@ -293,6 +311,6 @@ try:
                     loader_placeholder.empty()
                     st.error(f"একটি সমস্যা হয়েছে: {e}")
 
-except Exception as e:
-    st.error(f"অ্যাপ কনফিগারেশনে সমস্যা: {e}")
+    except Exception as e:
+        st.error(f"অ্যাপ কনফিগারেশনে সমস্যা: {e}")
         
